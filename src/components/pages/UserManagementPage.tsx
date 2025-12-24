@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Header } from '../common/Header';
 import { Footer } from '../common/Footer';
 import { Search, Filter, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { dataClient, ManagedUser } from '../../services/dataClient';
 
 type Page = 
   | 'main' 
@@ -21,31 +22,40 @@ interface UserManagementPageProps {
   onLogout: () => void;
 }
 
-interface User {
-  id: number;
-  name: string;
-  userId: string;
-  email: string;
-  joinDate: string;
-  status: 'pending' | 'approved' | 'rejected';
-  role: 'user' | 'uploader' | 'admin';
-  facePhotoCount: number;
-}
-
-const mockUsers: User[] = [
-  { id: 1, name: 'John Doe', userId: 'john.doe', email: 'john@example.com', joinDate: '2024-12-15', status: 'pending', role: 'user', facePhotoCount: 3 },
-  { id: 2, name: 'Sarah Johnson', userId: 'sarah.j', email: 'sarah@example.com', joinDate: '2024-12-14', status: 'pending', role: 'user', facePhotoCount: 2 },
-  { id: 3, name: 'Michael Chen', userId: 'mchen', email: 'michael@example.com', joinDate: '2024-12-10', status: 'approved', role: 'uploader', facePhotoCount: 3 },
-  { id: 4, name: 'Emily Davis', userId: 'emily.d', email: 'emily@example.com', joinDate: '2024-12-08', status: 'approved', role: 'user', facePhotoCount: 1 },
-  { id: 5, name: 'David Wilson', userId: 'dwilson', email: 'david@example.com', joinDate: '2024-12-05', status: 'approved', role: 'user', facePhotoCount: 3 },
-  { id: 6, name: 'Lisa Martinez', userId: 'lisa.m', email: 'lisa@example.com', joinDate: '2024-12-03', status: 'rejected', role: 'user', facePhotoCount: 1 },
-];
-
 export function UserManagementPage({ onNavigate, onLogout }: UserManagementPageProps) {
-  const [users] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<ManagedUser[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<ManagedUser | null>(null);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  const [usersError, setUsersError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadUsers = async () => {
+      try {
+        setIsLoadingUsers(true);
+        const data = await dataClient.listManagedUsers();
+        if (isMounted) {
+          setUsers(data);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setUsersError('사용자 정보를 불러오는 중 문제가 발생했습니다.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingUsers(false);
+        }
+      }
+    };
+
+    loadUsers();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -55,11 +65,15 @@ export function UserManagementPage({ onNavigate, onLogout }: UserManagementPageP
     return matchesSearch && matchesStatus;
   });
 
-  const handleApprove = (user: User) => {
+  const handleApprove = async (user: ManagedUser) => {
+    const updatedUsers = await dataClient.approveUser(user.id);
+    setUsers(updatedUsers);
     alert(`Approving user: ${user.name} (Demo)`);
   };
 
-  const handleReject = (user: User) => {
+  const handleReject = async (user: ManagedUser) => {
+    const updatedUsers = await dataClient.rejectUser(user.id);
+    setUsers(updatedUsers);
     alert(`Rejecting user: ${user.name} (Demo)`);
   };
 
@@ -101,6 +115,16 @@ export function UserManagementPage({ onNavigate, onLogout }: UserManagementPageP
             <p className="text-gray-600">Manage user accounts and approvals</p>
           </div>
 
+          {usersError && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
+              {usersError}
+            </div>
+          )}
+
+          {isLoadingUsers && (
+            <div className="mb-4 text-sm text-gray-500">사용자 정보를 불러오는 중...</div>
+          )}
+
           {/* Filters */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
             <div className="flex flex-col lg:flex-row gap-4">
@@ -136,7 +160,8 @@ export function UserManagementPage({ onNavigate, onLogout }: UserManagementPageP
           {/* Users List */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
             {/* Desktop: Table View */}
-            <div className="hidden md:block overflow-x-auto">
+            {!isLoadingUsers && !usersError && (
+              <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200 bg-gray-50">
@@ -203,10 +228,12 @@ export function UserManagementPage({ onNavigate, onLogout }: UserManagementPageP
                   ))}
                 </tbody>
               </table>
-            </div>
+              </div>
+            )}
 
             {/* Mobile: Card View */}
-            <div className="md:hidden divide-y divide-gray-100">
+            {!isLoadingUsers && !usersError && (
+              <div className="md:hidden divide-y divide-gray-100">
               {filteredUsers.map((user) => (
                 <div key={user.id} className="p-4">
                   <div className="flex items-start justify-between mb-3">
@@ -249,7 +276,14 @@ export function UserManagementPage({ onNavigate, onLogout }: UserManagementPageP
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            )}
+
+            {!isLoadingUsers && !usersError && filteredUsers.length === 0 && (
+              <div className="p-6 text-center text-sm text-gray-500">
+                조건에 맞는 사용자가 없습니다.
+              </div>
+            )}
           </div>
         </div>
       </main>

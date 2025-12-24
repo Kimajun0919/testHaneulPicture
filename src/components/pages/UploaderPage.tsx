@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Header } from '../common/Header';
 import { Footer } from '../common/Footer';
 import { Upload, X, FolderUp, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { dataClient, UploadEvent } from '../../services/dataClient';
 
 type Page = 
   | 'main' 
@@ -21,27 +22,40 @@ interface UploaderPageProps {
   onLogout: () => void;
 }
 
-interface UploadEvent {
-  id: number;
-  name: string;
-  photoCount: number;
-  status: 'pending' | 'processing' | 'completed';
-  uploadDate: string;
-  progress?: number;
-}
-
-const mockEvents: UploadEvent[] = [
-  { id: 1, name: 'Sunday Worship - December 15', photoCount: 45, status: 'completed', uploadDate: '2024-12-15' },
-  { id: 2, name: 'Community Gathering - December 10', photoCount: 32, status: 'completed', uploadDate: '2024-12-10' },
-  { id: 3, name: 'Youth Group Activity - December 8', photoCount: 28, status: 'processing', uploadDate: '2024-12-08', progress: 65 },
-  { id: 4, name: 'Leadership Conference - December 5', photoCount: 18, status: 'pending', uploadDate: '2024-12-05' },
-];
-
 export function UploaderPage({ onNavigate, onLogout }: UploaderPageProps) {
   const [eventName, setEventName] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [events] = useState<UploadEvent[]>(mockEvents);
+  const [events, setEvents] = useState<UploadEvent[]>([]);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
+  const [eventsError, setEventsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadEvents = async () => {
+      try {
+        setIsLoadingEvents(true);
+        const data = await dataClient.listUploadEvents();
+        if (isMounted) {
+          setEvents(data);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setEventsError('업로드 이력을 불러오는 중 문제가 발생했습니다.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingEvents(false);
+        }
+      }
+    };
+
+    loadEvents();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -257,82 +271,104 @@ export function UploaderPage({ onNavigate, onLogout }: UploaderPageProps) {
           <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 sm:p-8">
             <h2 className="text-gray-900 mb-6">Upload History</h2>
 
+            {eventsError && (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+                {eventsError}
+              </div>
+            )}
+
+            {isLoadingEvents && (
+              <div className="text-center py-8 text-sm text-gray-500">
+                업로드 이력을 불러오는 중...
+              </div>
+            )}
+
             {/* Desktop: Table View */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-sm text-gray-700">Event Name</th>
-                    <th className="text-left py-3 px-4 text-sm text-gray-700">Photos</th>
-                    <th className="text-left py-3 px-4 text-sm text-gray-700">Upload Date</th>
-                    <th className="text-left py-3 px-4 text-sm text-gray-700">Status</th>
-                    <th className="text-left py-3 px-4 text-sm text-gray-700">Progress</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {events.map((event) => (
-                    <tr key={event.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-4 px-4">
-                        <p className="text-sm text-gray-900">{event.name}</p>
-                      </td>
-                      <td className="py-4 px-4">
-                        <p className="text-sm text-gray-600">{event.photoCount} photos</p>
-                      </td>
-                      <td className="py-4 px-4">
-                        <p className="text-sm text-gray-600">{event.uploadDate}</p>
-                      </td>
-                      <td className="py-4 px-4">
-                        {getStatusBadge(event.status)}
-                      </td>
-                      <td className="py-4 px-4">
-                        {event.status === 'processing' && event.progress ? (
-                          <div className="w-full max-w-xs">
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div
-                                className="bg-blue-500 h-2 rounded-full transition-all"
-                                style={{ width: `${event.progress}%` }}
-                              />
-                            </div>
-                            <p className="text-xs text-gray-500 mt-1">{event.progress}%</p>
-                          </div>
-                        ) : (
-                          <span className="text-sm text-gray-400">—</span>
-                        )}
-                      </td>
+            {!isLoadingEvents && !eventsError && (
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 text-sm text-gray-700">Event Name</th>
+                      <th className="text-left py-3 px-4 text-sm text-gray-700">Photos</th>
+                      <th className="text-left py-3 px-4 text-sm text-gray-700">Upload Date</th>
+                      <th className="text-left py-3 px-4 text-sm text-gray-700">Status</th>
+                      <th className="text-left py-3 px-4 text-sm text-gray-700">Progress</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {events.map((event) => (
+                      <tr key={event.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-4 px-4">
+                          <p className="text-sm text-gray-900">{event.name}</p>
+                        </td>
+                        <td className="py-4 px-4">
+                          <p className="text-sm text-gray-600">{event.photoCount} photos</p>
+                        </td>
+                        <td className="py-4 px-4">
+                          <p className="text-sm text-gray-600">{event.uploadDate}</p>
+                        </td>
+                        <td className="py-4 px-4">
+                          {getStatusBadge(event.status)}
+                        </td>
+                        <td className="py-4 px-4">
+                          {event.status === 'processing' && event.progress ? (
+                            <div className="w-full max-w-xs">
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div
+                                  className="bg-blue-500 h-2 rounded-full transition-all"
+                                  style={{ width: `${event.progress}%` }}
+                                />
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">{event.progress}%</p>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-400">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* Mobile: Card View */}
-            <div className="md:hidden space-y-4">
-              {events.map((event) => (
-                <div key={event.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-900 mb-1">{event.name}</p>
-                      <p className="text-xs text-gray-500">{event.uploadDate}</p>
+            {!isLoadingEvents && !eventsError && (
+              <div className="md:hidden space-y-4">
+                {events.map((event) => (
+                  <div key={event.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-900 mb-1">{event.name}</p>
+                        <p className="text-xs text-gray-500">{event.uploadDate}</p>
+                      </div>
+                      {getStatusBadge(event.status)}
                     </div>
-                    {getStatusBadge(event.status)}
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">{event.photoCount} photos</span>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">{event.photoCount} photos</span>
+                      {event.status === 'processing' && event.progress && (
+                        <span className="text-blue-600">{event.progress}% complete</span>
+                      )}
+                    </div>
                     {event.status === 'processing' && event.progress && (
-                      <span className="text-blue-600">{event.progress}% complete</span>
+                      <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
+                        <div
+                          className="bg-blue-500 h-2 rounded-full transition-all"
+                          style={{ width: `${event.progress}%` }}
+                        />
+                      </div>
                     )}
                   </div>
-                  {event.status === 'processing' && event.progress && (
-                    <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
-                      <div
-                        className="bg-blue-500 h-2 rounded-full transition-all"
-                        style={{ width: `${event.progress}%` }}
-                      />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
+
+            {!isLoadingEvents && !eventsError && events.length === 0 && (
+              <div className="text-center py-8 text-sm text-gray-500">
+                아직 업로드된 사진이 없습니다.
+              </div>
+            )}
           </div>
         </div>
       </main>

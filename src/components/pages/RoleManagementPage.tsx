@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Header } from '../common/Header';
 import { Footer } from '../common/Footer';
 import { Search, Shield } from 'lucide-react';
+import { dataClient, RoleUser } from '../../services/dataClient';
 
 type Page = 
   | 'main' 
@@ -21,26 +22,38 @@ interface RoleManagementPageProps {
   onLogout: () => void;
 }
 
-interface UserRole {
-  id: number;
-  name: string;
-  userId: string;
-  currentRole: 'user' | 'uploader' | 'admin';
-  email: string;
-}
-
-const mockUsersForRole: UserRole[] = [
-  { id: 1, name: 'Michael Chen', userId: 'mchen', currentRole: 'uploader', email: 'michael@example.com' },
-  { id: 2, name: 'Emily Davis', userId: 'emily.d', currentRole: 'user', email: 'emily@example.com' },
-  { id: 3, name: 'David Wilson', userId: 'dwilson', currentRole: 'user', email: 'david@example.com' },
-  { id: 4, name: 'Sarah Johnson', userId: 'sarah.j', currentRole: 'user', email: 'sarah@example.com' },
-  { id: 5, name: 'James Anderson', userId: 'janderson', currentRole: 'uploader', email: 'james@example.com' },
-  { id: 6, name: 'Jessica Brown', userId: 'jbrown', currentRole: 'admin', email: 'jessica@example.com' },
-];
-
 export function RoleManagementPage({ onNavigate, onLogout }: RoleManagementPageProps) {
-  const [users, setUsers] = useState<UserRole[]>(mockUsersForRole);
+  const [users, setUsers] = useState<RoleUser[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  const [usersError, setUsersError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadUsers = async () => {
+      try {
+        setIsLoadingUsers(true);
+        const data = await dataClient.listRoleUsers();
+        if (isMounted) {
+          setUsers(data);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setUsersError('권한 사용자 정보를 불러오는 중 문제가 발생했습니다.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingUsers(false);
+        }
+      }
+    };
+
+    loadUsers();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -48,11 +61,10 @@ export function RoleManagementPage({ onNavigate, onLogout }: RoleManagementPageP
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleRoleChange = (userId: number, newRole: 'user' | 'uploader' | 'admin') => {
-    setUsers(prev => prev.map(user => 
-      user.id === userId ? { ...user, currentRole: newRole } : user
-    ));
-    const user = users.find(u => u.id === userId);
+  const handleRoleChange = async (userId: number, newRole: 'user' | 'uploader' | 'admin') => {
+    const updatedUsers = await dataClient.updateUserRole(userId, newRole);
+    setUsers(updatedUsers);
+    const user = updatedUsers.find(u => u.id === userId);
     alert(`Changed role for ${user?.name} to ${newRole} (Demo)`);
   };
 
@@ -80,6 +92,16 @@ export function RoleManagementPage({ onNavigate, onLogout }: RoleManagementPageP
             <h1 className="text-gray-900 mb-2">Role Management</h1>
             <p className="text-gray-600">Manage user roles and permissions</p>
           </div>
+
+          {usersError && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
+              {usersError}
+            </div>
+          )}
+
+          {isLoadingUsers && (
+            <div className="mb-4 text-sm text-gray-500">권한 사용자 정보를 불러오는 중...</div>
+          )}
 
           {/* Role Descriptions */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -137,7 +159,8 @@ export function RoleManagementPage({ onNavigate, onLogout }: RoleManagementPageP
           {/* Users Table */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
             {/* Desktop: Table View */}
-            <div className="hidden md:block overflow-x-auto">
+            {!isLoadingUsers && !usersError && (
+              <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200 bg-gray-50">
@@ -178,10 +201,12 @@ export function RoleManagementPage({ onNavigate, onLogout }: RoleManagementPageP
                   ))}
                 </tbody>
               </table>
-            </div>
+              </div>
+            )}
 
             {/* Mobile: Card View */}
-            <div className="md:hidden divide-y divide-gray-100">
+            {!isLoadingUsers && !usersError && (
+              <div className="md:hidden divide-y divide-gray-100">
               {filteredUsers.map((user) => (
                 <div key={user.id} className="p-4">
                   <div className="flex items-start justify-between mb-3">
@@ -206,7 +231,14 @@ export function RoleManagementPage({ onNavigate, onLogout }: RoleManagementPageP
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            )}
+
+            {!isLoadingUsers && !usersError && filteredUsers.length === 0 && (
+              <div className="p-6 text-center text-sm text-gray-500">
+                조건에 맞는 사용자가 없습니다.
+              </div>
+            )}
           </div>
 
           {/* Permission Matrix */}
