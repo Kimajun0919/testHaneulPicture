@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Header } from '../common/Header';
 import { Footer } from '../common/Footer';
 import { Download, ChevronLeft, ChevronRight, X, Filter } from 'lucide-react';
+import { dataClient, Photo } from '../../services/dataClient';
 
 type Page = 
   | 'main' 
@@ -22,34 +23,52 @@ interface ResultPageProps {
   userRole: 'user' | 'uploader' | 'admin';
 }
 
-interface Photo {
-  id: number;
-  url: string;
-  event: string;
-  date: string;
-}
-
-const mockPhotos: Photo[] = [
-  { id: 1, url: 'https://images.unsplash.com/photo-1662151900393-97f6bc1567ef?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjaHVyY2glMjB3b3JzaGlwJTIwc2VydmljZXxlbnwxfHx8fDE3NjY1MzYwNDJ8MA&ixlib=rb-4.1.0&q=80&w=1080', event: 'Sunday Worship - December 15', date: '2024-12-15' },
-  { id: 2, url: 'https://images.unsplash.com/photo-1764726354739-1222d1ea5b63?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxncm91cCUyMHBob3RvJTIwZXZlbnR8ZW58MXx8fHwxNzY2NTM2MDQyfDA&ixlib=rb-4.1.0&q=80&w=1080', event: 'Sunday Worship - December 15', date: '2024-12-15' },
-  { id: 3, url: 'https://images.unsplash.com/photo-1764933361142-fc28a024f3da?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb21tdW5pdHklMjBnYXRoZXJpbmclMjBwZW9wbGV8ZW58MXx8fHwxNzY2NDU5ODQ4fDA&ixlib=rb-4.1.0&q=80&w=1080', event: 'Community Gathering - December 10', date: '2024-12-10' },
-  { id: 4, url: 'https://images.unsplash.com/photo-1766018096217-1d930a54d36e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxvdXRkb29yJTIwZXZlbnQlMjBjZWxlYnJhdGlvbnxlbnwxfHx8fDE3NjY1MjQ2NjR8MA&ixlib=rb-4.1.0&q=80&w=1080', event: 'Outdoor Celebration - December 8', date: '2024-12-08' },
-  { id: 5, url: 'https://images.unsplash.com/photo-1632858265907-961f1454ccf6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb25mZXJlbmNlJTIwbWVldGluZyUyMHBlb3BsZXxlbnwxfHx8fDE3NjY1MzYwNDR8MA&ixlib=rb-4.1.0&q=80&w=1080', event: 'Leadership Conference - December 5', date: '2024-12-05' },
-  { id: 6, url: 'https://images.unsplash.com/photo-1764072970350-2ce4f354a483?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3V0aCUyMGdyb3VwJTIwYWN0aXZpdHl8ZW58MXx8fHwxNzY2NTM2MDQ0fDA&ixlib=rb-4.1.0&q=80&w=1080', event: 'Youth Group Activity - December 3', date: '2024-12-03' },
-  { id: 7, url: 'https://images.unsplash.com/photo-1662151900393-97f6bc1567ef?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjaHVyY2glMjB3b3JzaGlwJTIwc2VydmljZXxlbnwxfHx8fDE3NjY1MzYwNDJ8MA&ixlib=rb-4.1.0&q=80&w=1080', event: 'Sunday Worship - December 15', date: '2024-12-15' },
-  { id: 8, url: 'https://images.unsplash.com/photo-1764726354739-1222d1ea5b63?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxncm91cCUyMHBob3RvJTIwZXZlbnR8ZW58MXx8fHwxNzY2NTM2MDQyfDA&ixlib=rb-4.1.0&q=80&w=1080', event: 'Community Gathering - December 10', date: '2024-12-10' },
-  { id: 9, url: 'https://images.unsplash.com/photo-1764933361142-fc28a024f3da?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb21tdW5pdHklMjBnYXRoZXJpbmclMjBwZW9wbGV8ZW58MXx8fHwxNzY2NDU5ODQ4fDA&ixlib=rb-4.1.0&q=80&w=1080', event: 'Leadership Conference - December 5', date: '2024-12-05' },
-  { id: 10, url: 'https://images.unsplash.com/photo-1766018096217-1d930a54d36e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxvdXRkb29yJTIwZXZlbnQlMjBjZWxlYnJhdGlvbnxlbnwxfHx8fDE3NjY1MjQ2NjR8MA&ixlib=rb-4.1.0&q=80&w=1080', event: 'Youth Group Activity - December 3', date: '2024-12-03' },
-];
-
 export function ResultPage({ onNavigate, onLogout, userRole }: ResultPageProps) {
   const [selectedEvent, setSelectedEvent] = useState<string>('all');
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const events = ['all', ...Array.from(new Set(mockPhotos.map(p => p.event)))];
-  const filteredPhotos = selectedEvent === 'all' 
-    ? mockPhotos 
-    : mockPhotos.filter(p => p.event === selectedEvent);
+  useEffect(() => {
+    let isMounted = true;
+    const loadPhotos = async () => {
+      try {
+        setIsLoading(true);
+        const data = await dataClient.listPhotos();
+        if (isMounted) {
+          setPhotos(data);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setErrorMessage('사진을 불러오는 중 문제가 발생했습니다.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadPhotos();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const events = useMemo(
+    () => ['all', ...Array.from(new Set(photos.map(p => p.event)))],
+    [photos]
+  );
+  const filteredPhotos = useMemo(
+    () => (
+      selectedEvent === 'all'
+        ? photos
+        : photos.filter(p => p.event === selectedEvent)
+    ),
+    [photos, selectedEvent]
+  );
 
   const handlePreviousPhoto = () => {
     if (!selectedPhoto) return;
@@ -84,7 +103,7 @@ export function ResultPage({ onNavigate, onLogout, userRole }: ResultPageProps) 
           <div className="mb-8">
             <h1 className="text-gray-900 mb-2">내 사진</h1>
             <p className="text-gray-600">
-              {filteredPhotos.length}장의 사진에서 회원님이 발견되었습니다
+              {isLoading ? '사진을 불러오는 중입니다...' : `${filteredPhotos.length}장의 사진에서 회원님이 발견되었습니다`}
             </p>
           </div>
 
@@ -117,30 +136,42 @@ export function ResultPage({ onNavigate, onLogout, userRole }: ResultPageProps) 
             </div>
           </div>
 
+          {errorMessage && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 mb-6">
+              {errorMessage}
+            </div>
+          )}
+
           {/* Photo Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {filteredPhotos.map((photo) => (
-              <button
-                key={photo.id}
-                onClick={() => setSelectedPhoto(photo)}
-                className="group relative aspect-square bg-gray-200 rounded-lg overflow-hidden hover:ring-4 hover:ring-blue-300 transition-all"
-              >
-                <img
-                  src={photo.url}
-                  alt={`Photo ${photo.id}`}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
-                  <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                    보기
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
+          {!isLoading && !errorMessage && (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {filteredPhotos.map((photo) => (
+                <button
+                  key={photo.id}
+                  onClick={() => setSelectedPhoto(photo)}
+                  className="group relative aspect-square bg-gray-200 rounded-lg overflow-hidden hover:ring-4 hover:ring-blue-300 transition-all"
+                >
+                  <img
+                    src={photo.url}
+                    alt={`Photo ${photo.id}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
+                    <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                      보기
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {isLoading && (
+            <div className="text-center py-16 text-gray-500">사진을 불러오는 중...</div>
+          )}
 
           {/* Empty State */}
-          {filteredPhotos.length === 0 && (
+          {!isLoading && !errorMessage && filteredPhotos.length === 0 && (
             <div className="text-center py-16">
               <div className="w-20 h-20 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
                 <span className="text-4xl">📸</span>
