@@ -1,18 +1,6 @@
 import { Menu, X, User, LogOut } from 'lucide-react';
 import { useState } from 'react';
-
-type Page = 
-  | 'main' 
-  | 'login' 
-  | 'signup' 
-  | 'find-account' 
-  | 'profile' 
-  | 'results' 
-  | 'uploader'
-  | 'admin-dashboard'
-  | 'admin-users'
-  | 'admin-roles'
-  | 'pending-approval';
+import { Page } from '../../types';
 
 interface HeaderProps {
   onNavigate: (page: Page) => void;

@@ -2,19 +2,7 @@ import { useState } from 'react';
 import { Header } from '../common/Header';
 import { Footer } from '../common/Footer';
 import { Eye, EyeOff, Upload, X, AlertCircle } from 'lucide-react';
-
-type Page = 
-  | 'main' 
-  | 'login' 
-  | 'signup' 
-  | 'find-account' 
-  | 'profile' 
-  | 'results' 
-  | 'uploader'
-  | 'admin-dashboard'
-  | 'admin-users'
-  | 'admin-roles'
-  | 'pending-approval';
+import { Page } from '../../types';
 
 interface ProfileSettingsPageProps {
   onNavigate: (page: Page) => void;

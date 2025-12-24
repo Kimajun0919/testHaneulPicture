@@ -2,21 +2,7 @@ import { useState } from 'react';
 import { Header } from '../common/Header';
 import { Footer } from '../common/Footer';
 import { Eye, EyeOff } from 'lucide-react';
-
-type Page = 
-  | 'main' 
-  | 'login' 
-  | 'signup' 
-  | 'find-account' 
-  | 'profile' 
-  | 'results' 
-  | 'uploader'
-  | 'admin-dashboard'
-  | 'admin-users'
-  | 'admin-roles'
-  | 'pending-approval';
-
-type UserRole = 'user' | 'uploader' | 'admin';
+import { Page, UserRole } from '../../types';
 
 interface LoginPageProps {
   onNavigate: (page: Page) => void;

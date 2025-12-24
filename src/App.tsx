@@ -10,21 +10,7 @@ import { AdminDashboard } from './components/pages/AdminDashboard';
 import { UserManagementPage } from './components/pages/UserManagementPage';
 import { RoleManagementPage } from './components/pages/RoleManagementPage';
 import { PendingApprovalPage } from './components/pages/PendingApprovalPage';
-
-type Page = 
-  | 'main' 
-  | 'login' 
-  | 'signup' 
-  | 'find-account' 
-  | 'profile' 
-  | 'results' 
-  | 'uploader'
-  | 'admin-dashboard'
-  | 'admin-users'
-  | 'admin-roles'
-  | 'pending-approval';
-
-type UserRole = 'user' | 'uploader' | 'admin';
+import { Page, UserRole } from './types';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('main');

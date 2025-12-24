@@ -1,20 +1,8 @@
-import React, { useState } from 'react';
+import { useState, type FormEvent, type ChangeEvent } from 'react';
 import { Header } from '../common/Header';
 import { Footer } from '../common/Footer';
 import { Eye, EyeOff, Upload, X } from 'lucide-react';
-
-type Page = 
-  | 'main' 
-  | 'login' 
-  | 'signup' 
-  | 'find-account' 
-  | 'profile' 
-  | 'results' 
-  | 'uploader'
-  | 'admin-dashboard'
-  | 'admin-users'
-  | 'admin-roles'
-  | 'pending-approval';
+import { Page } from '../../types';
 
 interface SignUpPageProps {
   onNavigate: (page: Page) => void;
@@ -38,7 +26,7 @@ export function SignUpPage({ onNavigate, onSignUp }: SignUpPageProps) {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const remainingSlots = 3 - facePhotos.length;
     const newPhotos = files.slice(0, remainingSlots);
@@ -49,7 +37,7 @@ export function SignUpPage({ onNavigate, onSignUp }: SignUpPageProps) {
     setFacePhotos(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     
     if (formData.password !== formData.confirmPassword) {

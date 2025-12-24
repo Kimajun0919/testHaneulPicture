@@ -2,19 +2,7 @@ import { useState } from 'react';
 import { Header } from '../common/Header';
 import { Footer } from '../common/Footer';
 import { Mail, Phone } from 'lucide-react';
-
-type Page = 
-  | 'main' 
-  | 'login' 
-  | 'signup' 
-  | 'find-account' 
-  | 'profile' 
-  | 'results' 
-  | 'uploader'
-  | 'admin-dashboard'
-  | 'admin-users'
-  | 'admin-roles'
-  | 'pending-approval';
+import { Page } from '../../types';
 
 interface FindAccountPageProps {
   onNavigate: (page: Page) => void;
